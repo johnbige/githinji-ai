@@ -14,22 +14,6 @@ if not api_key:
     raise ValueError("FATAL ERROR: GOOGLE_API_KEY not found in .env file or environment variables.")
 genai.configure(api_key=api_key)
 
-# --- Tool Definition (same as before) ---
-def get_todays_date():
-    """Returns today's date as a string in YYYY-MM-DD format."""
-    return datetime.date.today().isoformat()
-
-# --- Model Configuration (same as before) ---
-get_date_tool = genai.protos.Tool(
-    function_declarations=[
-        genai.protos.FunctionDeclaration(
-            name="get_todays_date",
-            description="Gets the current date.",
-            parameters={}
-        )
-    ]
-)
-
 model = genai.GenerativeModel(
     model_name="gemini-2.5-flash",
     system_instruction="If asked your name, say you are classico A.I developed by John Githinji.",
