@@ -1,64 +1,52 @@
 import os
-import datetime
 import google.generativeai as genai
 from flask import Flask, render_template, request, jsonify, session
 from dotenv import load_dotenv
 
-# --- Pre-setup: Load environment variables and configure API ---
+# --- Load environment variables and configure the Google Generative AI client ---
 load_dotenv()
 
-# We can remove the try-except here. If the key is missing, Gunicorn/Flask
-# will fail to start and log the error, which is more informative than exit().
 api_key = os.environ.get("GOOGLE_API_KEY")
 if not api_key:
     raise ValueError("FATAL ERROR: GOOGLE_API_KEY not found in .env file or environment variables.")
+
 genai.configure(api_key=api_key)
 
+# --- Define Gemini model configuration ---
 model = genai.GenerativeModel(
     model_name="gemini-2.5-flash",
     system_instruction="If asked your name, say you are classico A.I developed by John Githinji.",
-    tools=[get_date_tool]
+    tools=[get_date_tool]  # Ensure get_date_tool is defined or imported
 )
 
-# --- Flask Web Application ---
+# --- Flask Web Application Setup ---
 app = Flask(__name__)
-# IMPORTANT: You need a secret key to use sessions in Flask
-# For production, use a long, random, and secret string.
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a-very-secret-key-for-development")
-
-# We no longer start a global chat session here.
-# It will be created on a per-user basis.
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-mode-secret")
 
 @app.route("/")
 def index():
-    """Renders the main chat page."""
-    # Clear session history on new visit for a clean start
+    """Render the main chat page and clear previous session history."""
     session.pop('chat_history', None)
     return render_template("index.html")
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    """Handles the chat message from the user, maintaining user-specific history."""
+    """Process user message and return AI-generated response."""
     try:
         user_message = request.json.get("message")
         if not user_message:
             return jsonify({"error": "Message cannot be empty."}), 400
 
-        # 1. Retrieve the user's chat history from the session, or start a new one.
-        # The history is a list of content objects that the API understands.
         chat_history = session.get('chat_history', [])
 
-        # 2. Create a new chat session *for this request* and load the history.
         chat_session = model.start_chat(
             history=chat_history,
             enable_automatic_function_calling=True
         )
 
-        # 3. Send the new message
         response = chat_session.send_message(user_message)
 
-        # 4. Save the updated history back into the user's session.
-        # chat_session.history contains the full conversation (user + model turns).
+        # Update session history
         session['chat_history'] = [
             {'role': msg.role, 'parts': [part.text for part in msg.parts]}
             for msg in chat_session.history
@@ -67,8 +55,7 @@ def chat():
         return jsonify({"response": response.text})
 
     except Exception as e:
-        # It's good practice to log the actual error for debugging.
-        print(f"An error occurred in /chat: {e}")
+        print(f"[ERROR] /chat route exception: {e}")
         return jsonify({"error": "An internal error occurred."}), 500
 
 if __name__ == "__main__":
