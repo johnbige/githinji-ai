@@ -31,7 +31,7 @@ get_date_tool = genai.protos.Tool(
 )
 
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash-latest",
+    model_name="gemini-2.5-flash",
     system_instruction="If asked your name, say you are classico A.I developed by John Githinji.",
     tools=[get_date_tool]
 )
